@@ -42,3 +42,17 @@ type Token struct {
 	Type    TokenType
 	Literal string
 }
+
+var keyWordToTokenType = map[string]TokenType{
+	"fn":  FUNCTION,
+	"let": LET,
+}
+
+func LookupIdentifier(ident string) TokenType {
+	// check if it is a language key word
+	if tok, ok := keyWordToTokenType[ident]; ok {
+		return tok
+	}
+	// otherwise it is a user defined identifier
+	return IDENT
+}

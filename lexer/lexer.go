@@ -1,6 +1,8 @@
 package lexer
 
-import "monkey/token"
+import (
+	"monkey/token"
+)
 
 type Lexer struct {
 	input        string
@@ -22,6 +24,9 @@ func New(input string) *Lexer {
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 
+	// skip white space
+	l.skipWhiteSpace()
+
 	switch l.ch {
 	case '=':
 		tok = newToken(token.ASSIGN, l.ch)
@@ -42,6 +47,20 @@ func (l *Lexer) NextToken() token.Token {
 	case 0:
 		tok.Type = token.EOF
 		tok.Literal = ""
+	default:
+		if isLetter(l.ch) {
+			tok.Literal = l.readIdentifier()
+			tok.Type = token.LookupIdentifier(tok.Literal)
+			// early return to avoid calling readChar again
+			return tok
+		} else if isDigit(l.ch) {
+			tok.Type = token.INT
+			tok.Literal = l.readNumber()
+			// early return to avoid calling readChar again
+			return tok
+		} else {
+			tok = newToken(token.ILLEGAL, l.ch)
+		}
 	}
 
 	l.readChar()
@@ -60,6 +79,40 @@ func (l *Lexer) readChar() {
 	l.readPosition += 1
 }
 
+// newToken is a helper method for creating token from type and a single character (does not work for all token types)
 func newToken(tokenType token.TokenType, ch byte) token.Token {
 	return token.Token{Type: tokenType, Literal: string(ch)}
+}
+
+// readIdentifier reads an identifier until it encounters a non-letter character
+func (l *Lexer) readIdentifier() string {
+	start := l.position
+	for isLetter(l.ch) {
+		l.readChar()
+	}
+	return l.input[start:l.position]
+}
+
+func (l *Lexer) readNumber() string {
+	start := l.position
+	for isDigit(l.ch) {
+		l.readChar()
+	}
+	return l.input[start:l.position]
+}
+
+// isLetter is a helper function for reading identifiers, it checks if a character is part of an identifier
+func isLetter(ch byte) bool {
+	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_'
+}
+
+// isLetter is a helper function for reading numbers, only supports integers
+func isDigit(ch byte) bool {
+	return '0' <= ch && ch <= '9'
+}
+
+func (l *Lexer) skipWhiteSpace() {
+	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
+		l.readChar()
+	}
 }
