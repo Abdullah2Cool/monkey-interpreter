@@ -122,10 +122,10 @@ if (5 < 10) {
 		{token.EOF, ""},
 	}
 
-	lexer := lexer.New(input)
+	lex := lexer.New(input)
 
 	for i, tt := range tests {
-		tok := lexer.NextToken()
+		tok := lex.NextToken()
 
 		s.Require().Equal(tt.expectedType, tok.Type, i)
 		s.Require().Equal(tt.expectedLiteral, tok.Literal, i)
