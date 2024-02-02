@@ -140,6 +140,7 @@ func (l *Lexer) skipWhiteSpace() {
 	}
 }
 
+// peekChar looks at the character ahead of current character if possible
 func (l *Lexer) peekChar() byte {
 	if l.readPosition >= len(l.input) {
 		return 0
