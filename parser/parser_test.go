@@ -32,7 +32,7 @@ let foobar = 838383;
 
 	program := p.ParseProgram()
 	s.Require().NotNil(program, "program was nil")
-	s.Require().ElementsMatch(p.Errors(), []string{}, "parser had errors")
+	s.Require().Len(p.Errors(), 0, "parser had errors")
 
 	s.Require().Len(program.Statements, 3)
 
@@ -58,4 +58,27 @@ func testLetStatement(s *Suite, stmt ast.Statement, name string) {
 
 	s.Require().Equal(letStmt.Name.Value, name)
 	s.Require().Equal(letStmt.Name.TokenLiteral(), name)
+}
+
+func (s *Suite) TestReturnStatements() {
+	input := `
+return 5;	
+return 10;
+return 993322;
+`
+	lex := lexer.New(input)
+	p := parser.New(lex)
+
+	program := p.ParseProgram()
+	s.Require().NotNil(program, "program was nil")
+	s.Require().Len(p.Errors(), 0, "parser had errors")
+
+	s.Require().Len(program.Statements, 3)
+
+	for _, stmt := range program.Statements {
+		letStmt, ok := stmt.(*ast.ReturnStatement)
+		s.Require().Truef(ok, "s not *ast.LetStatement. got=%T", stmt)
+
+		s.Require().Equal("return", letStmt.TokenLiteral())
+	}
 }
