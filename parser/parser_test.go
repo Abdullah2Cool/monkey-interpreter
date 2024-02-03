@@ -103,3 +103,24 @@ func (s *Suite) TestIdentifierExpression() {
 
 	s.Require().Equal("foobar", ident.TokenLiteral())
 }
+
+func (s *Suite) TestIntegerLiteralExpression() {
+	input := "5;"
+
+	lex := lexer.New(input)
+	p := parser.New(lex)
+
+	program := p.ParseProgram()
+	s.Require().NotNil(program, "program was nil")
+	s.Require().Len(p.Errors(), 0, "parser had errors")
+
+	s.Require().Len(program.Statements, 1)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	s.Require().Truef(ok, "s not *ast.ExpressionStatement. got=%T", stmt)
+
+	ident, ok := stmt.Expression.(*ast.IntegerLiteral)
+	s.Require().Truef(ok, "s not *ast.IntegerLiteral. got=%T", stmt)
+
+	s.Require().Equal("5", ident.TokenLiteral())
+}
