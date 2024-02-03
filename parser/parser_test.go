@@ -77,8 +77,29 @@ return 993322;
 
 	for _, stmt := range program.Statements {
 		letStmt, ok := stmt.(*ast.ReturnStatement)
-		s.Require().Truef(ok, "s not *ast.LetStatement. got=%T", stmt)
+		s.Require().Truef(ok, "s not *ast.ReturnStatement. got=%T", stmt)
 
 		s.Require().Equal("return", letStmt.TokenLiteral())
 	}
+}
+
+func (s *Suite) TestIdentifierExpression() {
+	input := "foobar;"
+
+	lex := lexer.New(input)
+	p := parser.New(lex)
+
+	program := p.ParseProgram()
+	s.Require().NotNil(program, "program was nil")
+	s.Require().Len(p.Errors(), 0, "parser had errors")
+
+	s.Require().Len(program.Statements, 1)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	s.Require().Truef(ok, "s not *ast.ExpressionStatement. got=%T", stmt)
+
+	ident, ok := stmt.Expression.(*ast.Identifier)
+	s.Require().Truef(ok, "s not *ast.Identifier. got=%T", stmt)
+
+	s.Require().Equal("foobar", ident.TokenLiteral())
 }
