@@ -1,6 +1,7 @@
 package parser_test
 
 import (
+	"fmt"
 	"testing"
 
 	"monkey/ast"
@@ -119,8 +120,47 @@ func (s *Suite) TestIntegerLiteralExpression() {
 	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
 	s.Require().Truef(ok, "s not *ast.ExpressionStatement. got=%T", stmt)
 
-	ident, ok := stmt.Expression.(*ast.IntegerLiteral)
+	intLiteral, ok := stmt.Expression.(*ast.IntegerLiteral)
 	s.Require().Truef(ok, "s not *ast.IntegerLiteral. got=%T", stmt)
 
-	s.Require().Equal("5", ident.TokenLiteral())
+	s.Require().Equal("5", intLiteral.TokenLiteral())
+}
+
+func (s *Suite) TestPrefixExpressions() {
+	prefixTests := []struct {
+		input        string
+		operator     string
+		integerValue int64
+	}{
+		{"!5", "!", 5},
+		{"-15", "-", 15},
+	}
+
+	for _, tt := range prefixTests {
+		lex := lexer.New(tt.input)
+		p := parser.New(lex)
+
+		program := p.ParseProgram()
+		s.Require().NotNil(program, "program was nil")
+		s.Require().Len(p.Errors(), 0, "parser had errors")
+
+		s.Require().Len(program.Statements, 1)
+
+		stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+		s.Require().Truef(ok, "s not *ast.ExpressionStatement. got=%T", stmt)
+
+		exp, ok := stmt.Expression.(*ast.PrefixExpression)
+		s.Require().Truef(ok, "s not *ast.PrefixExpression. got=%T", stmt)
+
+		testIntegerLiteral(s, exp.Right, tt.integerValue)
+	}
+}
+
+func testIntegerLiteral(s *Suite, il ast.Expression, value int64) {
+	intLiteral, ok := il.(*ast.IntegerLiteral)
+	s.Require().Truef(ok, "s not *ast.IntegerLiteral. got=%T", intLiteral)
+
+	s.Require().Equal(value, intLiteral.Value)
+
+	s.Require().Equal(fmt.Sprintf("%d", value), intLiteral.TokenLiteral())
 }
