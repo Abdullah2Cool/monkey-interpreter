@@ -419,3 +419,62 @@ func (s *Suite) TestIfElseExpression() {
 
 	testIdentifier(s, alternative.Expression, "y")
 }
+
+func (s *Suite) TestFunctionLiteralParsing() {
+	input := `fn(x, y) { x + y; }`
+
+	lex := lexer.New(input)
+	p := parser.New(lex)
+	program := p.ParseProgram()
+
+	s.Require().Len(p.Errors(), 0)
+
+	s.Require().Len(program.Statements, 1)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	s.Require().Truef(ok, "s not *ast.ExpressionStatement. got=%T", program.Statements[0])
+
+	function, ok := stmt.Expression.(*ast.FunctionLiteral)
+	s.Require().Truef(ok, "s not *ast.FunctionLiteral. got=%T", stmt.Expression)
+
+	s.Require().Len(function.Parameters, 2)
+
+	testLiteralExpression(s, function.Parameters[0], "x")
+	testLiteralExpression(s, function.Parameters[1], "y")
+
+	s.Require().Len(function.Body.Statements, 1)
+
+	bodyStmt, ok := function.Body.Statements[0].(*ast.ExpressionStatement)
+	s.Require().Truef(ok, "s not *ast.ExpressionStatement. got=%T", function.Body.Statements[0])
+
+	testInfixExpression(s, bodyStmt.Expression, "x", "+", "y")
+}
+
+func (s *Suite) TestFunctionParameterParsing() {
+	tests := []struct {
+		input          string
+		expectedParams []string
+	}{
+		{input: "fn() {};", expectedParams: []string{}},
+		{input: "fn(x) {};", expectedParams: []string{"x"}},
+		{input: "fn(x, y, z) {};", expectedParams: []string{"x", "y", "z"}},
+	}
+
+	for _, tt := range tests {
+		lex := lexer.New(tt.input)
+		p := parser.New(lex)
+		program := p.ParseProgram()
+
+		s.Require().Len(p.Errors(), 0)
+		s.Require().Len(program.Statements, 1)
+
+		stmt := program.Statements[0].(*ast.ExpressionStatement)
+		function := stmt.Expression.(*ast.FunctionLiteral)
+
+		s.Require().Len(function.Parameters, len(tt.expectedParams))
+
+		for i, ident := range tt.expectedParams {
+			testLiteralExpression(s, function.Parameters[i], ident)
+		}
+	}
+}
