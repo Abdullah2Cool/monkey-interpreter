@@ -23,31 +23,31 @@ func TestRunSuite(t *testing.T) {
 }
 
 func (s *Suite) TestLetStatements() {
-	input := `
-let x = 5;
-let y = 10;
-let foobar = 838383;
-`
-	lex := lexer.New(input)
-	p := parser.New(lex)
-
-	program := p.ParseProgram()
-	s.Require().NotNil(program, "program was nil")
-	s.Require().Len(p.Errors(), 0, "parser had errors")
-
-	s.Require().Len(program.Statements, 3)
-
 	tests := []struct {
+		input              string
 		expectedIdentifier string
+		expectedValue      interface{}
 	}{
-		{"x"},
-		{"y"},
-		{"foobar"},
+		{"let x = 5;", "x", 5},
+		{"let y = true;", "y", true},
+		{"let foobar = y;", "foobar", "y"},
 	}
 
-	for i, tt := range tests {
-		stmt := program.Statements[i]
+	for _, tt := range tests {
+		lex := lexer.New(tt.input)
+		p := parser.New(lex)
+
+		program := p.ParseProgram()
+		s.Require().NotNil(program, "program was nil")
+		s.Require().Len(p.Errors(), 0, "parser had errors")
+
+		s.Require().Len(program.Statements, 1)
+
+		stmt := program.Statements[0]
 		testLetStatement(s, stmt, tt.expectedIdentifier)
+
+		val := stmt.(*ast.LetStatement).Value
+		testLiteralExpression(s, val, tt.expectedValue)
 	}
 }
 
@@ -62,25 +62,32 @@ func testLetStatement(s *Suite, stmt ast.Statement, name string) {
 }
 
 func (s *Suite) TestReturnStatements() {
-	input := `
-return 5;	
-return 10;
-return 993322;
-`
-	lex := lexer.New(input)
-	p := parser.New(lex)
+	tests := []struct {
+		input         string
+		expectedValue interface{}
+	}{
+		{"return 5;", 5},
+		{"return true;", true},
+		{"return foobar;", "foobar"},
+	}
 
-	program := p.ParseProgram()
-	s.Require().NotNil(program, "program was nil")
-	s.Require().Len(p.Errors(), 0, "parser had errors")
+	for _, tt := range tests {
+		lex := lexer.New(tt.input)
+		p := parser.New(lex)
 
-	s.Require().Len(program.Statements, 3)
+		program := p.ParseProgram()
+		s.Require().NotNil(program, "program was nil")
+		s.Require().Len(p.Errors(), 0, "parser had errors")
 
-	for _, stmt := range program.Statements {
-		letStmt, ok := stmt.(*ast.ReturnStatement)
+		s.Require().Len(program.Statements, 1)
+
+		stmt := program.Statements[0]
+		returnStmt, ok := stmt.(*ast.ReturnStatement)
 		s.Require().Truef(ok, "s not *ast.ReturnStatement. got=%T", stmt)
 
-		s.Require().Equal("return", letStmt.TokenLiteral())
+		s.Require().Equal("return", returnStmt.TokenLiteral())
+
+		testLiteralExpression(s, returnStmt.ReturnValue, tt.expectedValue)
 	}
 }
 
@@ -296,6 +303,18 @@ func (s *Suite) TestOperatorPrecedenceParsing() {
 			"!(true == true)",
 			"(!(true == true))",
 		},
+		{
+			"a + add(b * c) + d",
+			"((a + add((b * c))) + d)",
+		},
+		{
+			"add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+			"add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+		},
+		{
+			"add(a + b + c * d / f + g)",
+			"add((((a + b) + ((c * d) / f)) + g))",
+		},
 	}
 	for _, tt := range tests {
 		lex := lexer.New(tt.input)
@@ -477,4 +496,30 @@ func (s *Suite) TestFunctionParameterParsing() {
 			testLiteralExpression(s, function.Parameters[i], ident)
 		}
 	}
+}
+
+func (s *Suite) TestCallExpressionParsing() {
+	input := `add(1, 2 * 3, 4 + 5);`
+
+	lex := lexer.New(input)
+	p := parser.New(lex)
+	program := p.ParseProgram()
+
+	s.Require().Len(p.Errors(), 0)
+
+	s.Require().Len(program.Statements, 1)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	s.Require().Truef(ok, "s not *ast.ExpressionStatement. got=%T", program.Statements[0])
+
+	exp, ok := stmt.Expression.(*ast.CallExpression)
+	s.Require().Truef(ok, "s not *ast.CallExpression. got=%T", stmt.Expression)
+
+	testIdentifier(s, exp.Function, "add")
+
+	s.Require().Len(exp.Arguments, 3)
+
+	testLiteralExpression(s, exp.Arguments[0], 1)
+	testInfixExpression(s, exp.Arguments[1], 2, "*", 3)
+	testInfixExpression(s, exp.Arguments[2], 4, "+", 5)
 }
