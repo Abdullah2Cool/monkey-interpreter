@@ -130,10 +130,12 @@ func (s *Suite) TestParsingPrefixExpressions() {
 	prefixTests := []struct {
 		input        string
 		operator     string
-		integerValue int64
+		integerValue interface{}
 	}{
 		{"!5", "!", 5},
 		{"-15", "-", 15},
+		{"!true", "!", true},
+		{"!false", "!", false},
 	}
 
 	for _, tt := range prefixTests {
@@ -152,7 +154,7 @@ func (s *Suite) TestParsingPrefixExpressions() {
 		exp, ok := stmt.Expression.(*ast.PrefixExpression)
 		s.Require().Truef(ok, "s not *ast.PrefixExpression. got=%T", stmt)
 
-		testIntegerLiteral(s, exp.Right, tt.integerValue)
+		testLiteralExpression(s, exp.Right, tt.integerValue)
 	}
 }
 
@@ -168,9 +170,9 @@ func testIntegerLiteral(s *Suite, il ast.Expression, value int64) {
 func (s *Suite) TestParsingInfixExpressions() {
 	infixTests := []struct {
 		input      string
-		leftValue  int64
+		leftValue  interface{}
 		operator   string
-		rightValue int64
+		rightValue interface{}
 	}{
 		{"5 + 5;", 5, "+", 5},
 		{"5 - 5;", 5, "-", 5},
@@ -180,6 +182,9 @@ func (s *Suite) TestParsingInfixExpressions() {
 		{"5 > 5;", 5, ">", 5},
 		{"5 == 5;", 5, "==", 5},
 		{"5 != 5;", 5, "!=", 5},
+		{"true == true", true, "==", true},
+		{"true != false", true, "!=", false},
+		{"false == false", false, "==", false},
 	}
 
 	for _, tt := range infixTests {
@@ -198,11 +203,7 @@ func (s *Suite) TestParsingInfixExpressions() {
 		exp, ok := stmt.Expression.(*ast.InfixExpression)
 		s.Require().Truef(ok, "s not *ast.InfixExpression. got=%T", stmt)
 
-		testIntegerLiteral(s, exp.Left, tt.leftValue)
-
-		s.Require().Equal(tt.operator, exp.Operator)
-
-		testIntegerLiteral(s, exp.Right, tt.rightValue)
+		testInfixExpression(s, exp, tt.leftValue, tt.operator, tt.rightValue)
 	}
 }
 
@@ -259,6 +260,42 @@ func (s *Suite) TestOperatorPrecedenceParsing() {
 			"3 + 4 * 5 == 3 * 1 + 4 * 5",
 			"((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
 		},
+		{
+			"true",
+			"true",
+		},
+		{
+			"false",
+			"false",
+		},
+		{
+			"3 > 5 == false",
+			"((3 > 5) == false)",
+		},
+		{
+			"3 < 5 == true",
+			"((3 < 5) == true)",
+		},
+		{
+			"1 + (2 + 3) + 4",
+			"((1 + (2 + 3)) + 4)",
+		},
+		{
+			"(5 + 5) * 2",
+			"((5 + 5) * 2)",
+		},
+		{
+			"2 / (5 + 5)",
+			"(2 / (5 + 5))",
+		},
+		{
+			"-(5 + 5)",
+			"(-(5 + 5))",
+		},
+		{
+			"!(true == true)",
+			"(!(true == true))",
+		},
 	}
 	for _, tt := range tests {
 		lex := lexer.New(tt.input)
@@ -271,4 +308,48 @@ func (s *Suite) TestOperatorPrecedenceParsing() {
 		actual := program.String()
 		s.Require().Equal(tt.expected, actual)
 	}
+}
+
+func testIdentifier(s *Suite, exp ast.Expression, value string) {
+	ident, ok := exp.(*ast.Identifier)
+	s.Require().Truef(ok, "exp not *ast.Identifier. got=%T", exp)
+
+	s.Require().Equal(value, ident.Value)
+
+	s.Require().Equal(ident.TokenLiteral(), value)
+}
+
+func testLiteralExpression(s *Suite, exp ast.Expression, expected interface{}) {
+	switch v := expected.(type) {
+	case int:
+		testIntegerLiteral(s, exp, int64(v))
+	case int64:
+		testIntegerLiteral(s, exp, v)
+	case string:
+		testIdentifier(s, exp, v)
+	case bool:
+		testBooleanLiteral(s, exp, v)
+	default:
+		s.Require().Fail(fmt.Sprintf("type of exp not handled. got=%T", exp))
+	}
+}
+
+func testInfixExpression(s *Suite, exp ast.Expression, left interface{}, operator string, right interface{}) {
+	opExp, ok := exp.(*ast.InfixExpression)
+	s.Require().Truef(ok, "exp not *ast.InfixExpression. got=%T", exp)
+
+	testLiteralExpression(s, opExp.Left, left)
+
+	s.Require().Equal(operator, opExp.Operator)
+
+	testLiteralExpression(s, opExp.Right, right)
+}
+
+func testBooleanLiteral(s *Suite, exp ast.Expression, value bool) {
+	boolLiteral, ok := exp.(*ast.BooleanLiteral)
+	s.Require().Truef(ok, "exp not *ast.BooleanLiteral. got=%T", exp)
+
+	s.Require().Equal(value, boolLiteral.Value)
+
+	s.Require().Equal(fmt.Sprintf("%t", value), boolLiteral.TokenLiteral())
 }
