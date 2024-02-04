@@ -353,3 +353,69 @@ func testBooleanLiteral(s *Suite, exp ast.Expression, value bool) {
 
 	s.Require().Equal(fmt.Sprintf("%t", value), boolLiteral.TokenLiteral())
 }
+
+func (s *Suite) TestIfExpression() {
+	input := `if (x < y) { x }`
+
+	lex := lexer.New(input)
+	p := parser.New(lex)
+	program := p.ParseProgram()
+
+	s.Require().Len(p.Errors(), 0)
+
+	s.Require().Len(program.Statements, 1)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	s.Require().Truef(ok, "s not *ast.ExpressionStatement. got=%T", program.Statements[0])
+
+	exp, ok := stmt.Expression.(*ast.IfExpression)
+	s.Require().Truef(ok, "s not *ast.IfExpression. got=%T", stmt.Expression)
+
+	testInfixExpression(s, exp.Condition, "x", "<", "y")
+
+	s.Require().NotNil(exp.Consequence)
+	s.Require().Len(exp.Consequence.Statements, 1)
+
+	consequence, ok := exp.Consequence.Statements[0].(*ast.ExpressionStatement)
+	s.Require().Truef(ok, "s not *ast.ExpressionStatement. got=%T", exp.Consequence.Statements[0])
+
+	testIdentifier(s, consequence.Expression, "x")
+
+	s.Require().Nil(exp.Alternative)
+}
+
+func (s *Suite) TestIfElseExpression() {
+	input := `if (x < y) { x } else { y }`
+
+	lex := lexer.New(input)
+	p := parser.New(lex)
+	program := p.ParseProgram()
+
+	s.Require().Len(p.Errors(), 0)
+
+	s.Require().Len(program.Statements, 1)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	s.Require().Truef(ok, "s not *ast.ExpressionStatement. got=%T", program.Statements[0])
+
+	exp, ok := stmt.Expression.(*ast.IfExpression)
+	s.Require().Truef(ok, "s not *ast.IfExpression. got=%T", stmt.Expression)
+
+	testInfixExpression(s, exp.Condition, "x", "<", "y")
+
+	s.Require().NotNil(exp.Consequence)
+	s.Require().Len(exp.Consequence.Statements, 1)
+
+	consequence, ok := exp.Consequence.Statements[0].(*ast.ExpressionStatement)
+	s.Require().Truef(ok, "s not *ast.ExpressionStatement. got=%T", exp.Consequence.Statements[0])
+
+	testIdentifier(s, consequence.Expression, "x")
+
+	s.Require().NotNil(exp.Alternative)
+	s.Require().Len(exp.Alternative.Statements, 1)
+
+	alternative, ok := exp.Alternative.Statements[0].(*ast.ExpressionStatement)
+	s.Require().Truef(ok, "s not *ast.ExpressionStatement. got=%T", exp.Alternative.Statements[0])
+
+	testIdentifier(s, alternative.Expression, "y")
+}
