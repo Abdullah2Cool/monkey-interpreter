@@ -55,6 +55,10 @@ func (s *Suite) TestEvalBooleanExpression() {
 	}{
 		{"true", true},
 		{"false", false},
+		{"(1 < 2) == true", true},
+		{"(1 < 2) == false", false},
+		{"(1 > 2) == true", false},
+		{"(1 > 2) == false", true},
 	}
 
 	for _, tt := range tests {
