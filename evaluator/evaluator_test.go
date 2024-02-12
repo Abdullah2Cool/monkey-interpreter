@@ -180,6 +180,10 @@ func (s *Suite) TestErrorHandling() {
 	`,
 			"unknown operator: BOOLEAN + BOOLEAN",
 		},
+		{
+			"foobar",
+			"identifier not found: foobar",
+		},
 	}
 	for _, tt := range tests {
 		evaluated := testEval(tt.input)
@@ -191,12 +195,29 @@ func (s *Suite) TestErrorHandling() {
 	}
 }
 
+func (s *Suite) TestLetStatements() {
+	tests := []struct {
+		input    string
+		expected int64
+	}{
+		{"let a = 5; a;", 5},
+		{"let a = 5 * 5; a;", 25},
+		{"let a = 5; let b = a; b;", 5},
+		{"let a = 5; let b = a; let c = a + b + 5; c;", 15},
+	}
+
+	for _, tt := range tests {
+		testIntegerObject(s, testEval(tt.input), tt.expected)
+	}
+}
+
 func testEval(input string) object.Object {
 	lex := lexer.New(input)
 	p := parser.New(lex)
 	program := p.ParseProgram()
+	env := object.NewEnvironment()
 
-	return evaluator.Eval(program)
+	return evaluator.Eval(program, env)
 }
 
 func testIntegerObject(s *Suite, obj object.Object, expected int64) {
