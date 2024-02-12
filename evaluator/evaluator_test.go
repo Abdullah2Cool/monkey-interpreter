@@ -86,6 +86,31 @@ func (s *Suite) TestBangOperator() {
 	}
 }
 
+func (s *Suite) TestIfElseExpressions() {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{"if (true) { 10 }", 10},
+		{"if (false) { 10 }", nil},
+		{"if (1) { 10 }", 10},
+		{"if (1 < 2) { 10 }", 10},
+		{"if (1 > 2) { 10 }", nil},
+		{"if (1 > 2) { 10 } else { 20 }", 20},
+		{"if (1 < 2) { 10 } else { 20 }", 10},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		integer, ok := tt.expected.(int)
+		if ok {
+			testIntegerObject(s, evaluated, int64(integer))
+		} else {
+			testNullObject(s, evaluated)
+		}
+	}
+}
+
 func testEval(input string) object.Object {
 	lex := lexer.New(input)
 	p := parser.New(lex)
@@ -96,14 +121,18 @@ func testEval(input string) object.Object {
 
 func testIntegerObject(s *Suite, obj object.Object, expected int64) {
 	result, ok := obj.(*object.Integer)
-	s.Require().True(ok)
+	s.Require().True(ok, "expected *object.Integer but got %T", obj)
 
 	s.Require().Equal(expected, result.Value)
 }
 
 func testBooleanObject(s *Suite, obj object.Object, expected bool) {
 	result, ok := obj.(*object.Boolean)
-	s.Require().True(ok)
+	s.Require().Truef(ok, "expected *object.Boolean but got %T", obj)
 
 	s.Require().Equal(expected, result.Value)
+}
+
+func testNullObject(s *Suite, obj object.Object) {
+	s.Require().Equal(evaluator.NULL, obj)
 }
