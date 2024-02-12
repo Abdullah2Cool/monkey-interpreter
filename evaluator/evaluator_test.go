@@ -132,6 +132,25 @@ func (s *Suite) TestReturnStatements() {
 	`,
 			10,
 		},
+		{
+			`
+let f = fn(x) {
+  return x;
+  x + 10;
+};
+f(10);`,
+			10,
+		},
+		{
+			`
+let f = fn(x) {
+   let result = x + 10;
+   return result;
+   return 10;
+};
+f(10);`,
+			20,
+		},
 	}
 
 	for _, tt := range tests {
@@ -209,6 +228,49 @@ func (s *Suite) TestLetStatements() {
 	for _, tt := range tests {
 		testIntegerObject(s, testEval(tt.input), tt.expected)
 	}
+}
+
+func (s *Suite) TestFunctionObject() {
+	input := "fn(x) { x + 2; };"
+
+	evaluated := testEval(input)
+	fn, ok := evaluated.(*object.Function)
+	s.Require().Truef(ok, "object is not Function. got=%T (%+v)", evaluated, evaluated)
+
+	s.Require().Len(fn.Parameters, 1)
+
+	s.Require().Equal("x", fn.Parameters[0].String())
+
+	s.Require().Equal("(x + 2)", fn.Body.String())
+}
+
+func (s *Suite) TestFunctionApplication() {
+	tests := []struct {
+		input    string
+		expected int64
+	}{
+		{"let identity = fn(x) { x; }; identity(5);", 5},
+		{"let identity = fn(x) { return x; }; identity(5);", 5},
+		{"let double = fn(x) { x * 2; }; double(5);", 10},
+		{"let add = fn(x, y) { x + y; }; add(5, 5);", 10},
+		{"let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));", 20},
+		{"fn(x) { x; }(5)", 5},
+	}
+
+	for _, tt := range tests {
+		testIntegerObject(s, testEval(tt.input), tt.expected)
+	}
+}
+
+func (s *Suite) TestClosures() {
+	input := `
+	let newAdder = fn(x) {
+		fn(y) { x + y };
+	};
+	let addTwo = newAdder(2);
+	addTwo(2);`
+
+	testIntegerObject(s, testEval(input), 4)
 }
 
 func testEval(input string) object.Object {
