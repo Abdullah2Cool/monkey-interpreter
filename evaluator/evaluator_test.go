@@ -203,6 +203,10 @@ func (s *Suite) TestErrorHandling() {
 			"foobar",
 			"identifier not found: foobar",
 		},
+		{
+			`"Hello" - "World"`,
+			"unknown operator: STRING - STRING",
+		},
 	}
 	for _, tt := range tests {
 		evaluated := testEval(tt.input)
@@ -271,6 +275,26 @@ func (s *Suite) TestClosures() {
 	addTwo(2);`
 
 	testIntegerObject(s, testEval(input), 4)
+}
+
+func (s *Suite) TestStringLiteral() {
+	input := `"Hello World!"`
+
+	evaluated := testEval(input)
+	str, ok := evaluated.(*object.String)
+	s.Require().Truef(ok, "expected *object.String but got %T", evaluated)
+
+	s.Require().Equal("Hello World!", str.Value)
+}
+
+func (s *Suite) TestStringConcatenation() {
+	input := `"Hello" + " " +  "World!"`
+
+	evaluated := testEval(input)
+	str, ok := evaluated.(*object.String)
+	s.Require().Truef(ok, "expected *object.String but got %T (%+v)", evaluated, evaluated)
+
+	s.Require().Equal("Hello World!", str.Value)
 }
 
 func testEval(input string) object.Object {

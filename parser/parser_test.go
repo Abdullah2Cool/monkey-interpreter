@@ -523,3 +523,23 @@ func (s *Suite) TestCallExpressionParsing() {
 	testInfixExpression(s, exp.Arguments[1], 2, "*", 3)
 	testInfixExpression(s, exp.Arguments[2], 4, "+", 5)
 }
+
+func (s *Suite) TestStringLiteralExpression() {
+	input := `"hello world";`
+
+	lex := lexer.New(input)
+	p := parser.New(lex)
+	program := p.ParseProgram()
+
+	s.Require().Len(p.Errors(), 0)
+
+	s.Require().Len(program.Statements, 1)
+
+	stmt, ok := program.Statements[0].(*ast.ExpressionStatement)
+	s.Require().Truef(ok, "s not *ast.ExpressionStatement. got=%T", program.Statements[0])
+
+	sl, ok := stmt.Expression.(*ast.StringLiteral)
+	s.Require().Truef(ok, "s not *ast.StringLiteral. got=%T", stmt.Expression)
+
+	s.Require().Equal("hello world", sl.Value)
+}
